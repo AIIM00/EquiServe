@@ -1,4 +1,5 @@
 import prisma from "../src/prisma.js";
+import { assignNextCraftsman } from "../services/taskAssignmentService.js";
 
 //Get All services categories
 export const browseServices = async (req, res) => {
@@ -39,6 +40,11 @@ export const bookTask = async (req, res) => {
         createdAt: new Date(),
       },
     });
+    try {
+      await assignNextCraftsman(booking.id);
+    } catch (assignError) {
+      console.error("Auto-assignment failed:", assignError.message);
+    }
     res.json({ message: "Service booked successfully", booking });
   } catch (error) {
     console.error("Error booking service:", error);

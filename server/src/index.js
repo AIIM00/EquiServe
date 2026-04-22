@@ -6,6 +6,7 @@ import authRouter from "../routes/authRoutes.js";
 import userRouter from "../routes/userRoutes.js";
 import adminRouter from "../routes/adminRoutes.js";
 import craftsmanRouter from "../routes/craftsmanRoutes.js";
+import { startTimeoutCron } from "../services/taskTimeoutCron.js";
 
 const app = express();
 
@@ -34,4 +35,5 @@ app.use("/api/craftsman", craftsmanRouter);
 const PORT = process.env.PORT;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+  startTimeoutCron();
 });

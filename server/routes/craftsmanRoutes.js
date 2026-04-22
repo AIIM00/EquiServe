@@ -65,3 +65,5 @@ craftsmanRouter.patch(
 );
 
 craftsmanRouter.patch("/profile", userAuth, isCraftsman, updateProfile);
+
+export default craftsmanRouter;

@@ -63,8 +63,8 @@ adminRouter.get("/tasks/in-progress", userAuth, isAdmin, inProgressTasks);
 adminRouter.get("/data/:id", userAuth, isAdmin, getUserById);
 adminRouter.delete("/delete/:id", userAuth, isAdmin, deleteUserById);
 
-adminRouter.post("/warnings/:craftsman-id", userAuth, isAdmin, createWarning);
-adminRouter.delete("/warnings/:warning-id", userAuth, isAdmin, removeWarning);
+adminRouter.post("/warnings/:craftsmanId", userAuth, isAdmin, createWarning);
+adminRouter.delete("/warnings/:warningId", userAuth, isAdmin, removeWarning);
 adminRouter.get(
   "/warnings/flagged-craftsmen",
   userAuth,

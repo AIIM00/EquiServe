@@ -13,8 +13,20 @@ export const addAdmin = async (req, res) => {
   const existing = await prisma.user.findUnique({
     where: { email },
   });
+  const existingInvite = await prisma.adminInvite.findUnique({
+    where: { email },
+  });
 
   if (!existing) {
+    if (
+      existingInvite &&
+      !existingInvite.used &&
+      existingInvite.expiresAt > new Date()
+    ) {
+      return res
+        .status(400)
+        .json({ message: "An active invite already exists for this email" });
+    }
     const token = crypto.randomBytes(32).toString("hex");
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); //24 hours
     //Save invite to DB
@@ -48,7 +60,6 @@ The EquiServe Team
     await transporter.sendMail(mailOptions);
     res.json({ message: "Invitation sent successfully" });
   } else {
-    console.log("⚠️ Admin already exists");
     return res.status(400).json({ message: "Admin already exists" });
   }
 };
@@ -249,50 +260,86 @@ export const updateApplicationStatus = async (req, res) => {
   try {
     const { userId } = req.params;
     const { status } = req.body; // "APPROVED" or "REJECTED"
-    const application = await prisma.application.findUnique({
-      where: { userId },
-    });
     if (status === "APPROVED") {
-      await prisma.craftsman.update({
-        where: { userId },
-        data: {
-          userId,
-          status: "APPROVED",
-          categoryId: application.categoryId,
-          experience: application.yearsOfExperience,
-          city: application.city,
-          workingDays: application.workingDays,
-          workingHours: application.workingHours,
-          maxTravelDistance: application.maxTravelDistance,
-        },
+      await prisma.$transaction(async (tx) => {
+        const application = await tx.application.findUnique({
+          where: { userId },
+        });
+        if (!application) {
+          throw new Error("Application not found");
+        }
+        if (!application.categoryId) {
+          throw new Error("Application has no category");
+        }
+        const last = await tx.craftsman.findFirst({
+          where: {
+            categoryId: application.categoryId,
+            queueOrder: { not: null },
+          },
+          orderBy: { queueOrder: "desc" },
+          select: { queueOrder: true },
+        });
+
+        const nextOrder = (last?.queueOrder ?? 0) + 1;
+        await tx.craftsman.update({
+          where: { userId },
+          data: {
+            status: "APPROVED",
+            categoryId: application.categoryId,
+            queueOrder: nextOrder,
+            experience: application.yearsOfExperience,
+          },
+        });
+        await tx.application.update({
+          where: { userId },
+          data: { status: "APPROVED" },
+        });
       });
-      await prisma.application.update({
-        where: { userId },
-        data: { status: "APPROVED" },
-      });
+      return res.json({ message: "Craftsman approved successfully" });
     } else if (status === "REJECTED") {
-      await prisma.craftsman.delete({
-        where: { userId },
+      await prisma.$transaction(async (tx) => {
+        const application = await tx.application.findUnique({
+          where: { userId },
+        });
+
+        if (!application) {
+          throw new Error("Application not found");
+        }
+
+        await tx.craftsman.update({
+          where: { userId },
+          data: { status: "REJECTED" },
+        });
+
+        await tx.application.update({
+          where: { userId },
+          data: { status: "REJECTED" },
+        });
       });
-      await prisma.application.update({
-        where: { userId },
-        data: { status: "REJECTED" },
-      });
+
+      return res.json({ message: "Craftsman rejected successfully" });
     } else if (status === "SUSPENDED") {
       await prisma.craftsman.update({
         where: { userId },
         data: { status: "SUSPENDED" },
       });
-    } else {
-      return res.status(400).json({ message: "Invalid status value" });
+
+      return res.json({ message: "Craftsman suspended successfully" });
     }
 
-    res.json({ message: "Status updated" });
-
-    //⚠️SEND EMAIL AFTER APPROVAL/REJECTION
+    return res.status(400).json({ message: "Invalid status value" });
+    //⚠️SEND EMAIL AFTER APPROVAL/REJECTION/SUSPENSION
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "Internal server error" });
+    if (error.message === "Application not found") {
+      return res.status(404).json({ message: error.message });
+    }
+
+    if (error.message === "Application has no category") {
+      return res.status(400).json({ message: error.message });
+    }
+
+    return res.status(500).json({ message: "Internal server error" });
   }
 };
 

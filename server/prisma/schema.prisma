@@ -48,11 +48,13 @@ model Craftsman {
   user   User   @relation(fields: [userId], references: [id])
 
   categoryId String?
+  queueOrder Int?
+
   experience Int?
 
-  status       CraftsmanStatus    @default(PENDING)
-  availability AvailabilityStatus @default(AVAILABLE)
-  warningLevel WarningLevel       @default(NONE)
+  status       CraftsmanStatus @default(PENDING)
+  isAvailable  Boolean         @default(true)
+  warningLevel WarningLevel    @default(NONE)
 
   projects        Project[]
   assignments     TaskAssignment[]
@@ -62,6 +64,8 @@ model Craftsman {
 
   warnings Warning[]
   tasks    Task[]
+
+  @@unique([categoryId, queueOrder])
 }
 
 model Application {
@@ -128,11 +132,20 @@ model Location {
 }
 
 model Category {
-  id           String        @id @default(uuid())
-  name         String        @unique
+  id           String                   @id @default(uuid())
+  name         String                   @unique
   craftsmen    Craftsman[]
   tasks        Task[]
   applications Application[]
+  queue        CategoryAssignmentQueue?
+}
+
+model CategoryAssignmentQueue {
+  categoryId     String   @id
+  lastAssignedTo String?
+  updatedAt      DateTime @updatedAt
+
+  category Category @relation(fields: [categoryId], references: [id])
 }
 
 model Task {
@@ -244,6 +257,7 @@ enum Role {
 
 enum TaskStatus {
   PENDING
+  WAITING
   IN_PROGRESS
   COMPLETED
 }
@@ -260,11 +274,6 @@ enum CraftsmanStatus {
   PENDING
   APPROVED
   REJECTED
-}
-
-enum AvailabilityStatus {
-  AVAILABLE
-  UNAVAILABLE
 }
 
 enum WarningLevel {
