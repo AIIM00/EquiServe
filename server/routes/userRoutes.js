@@ -7,6 +7,7 @@ import {
   cancelBooking,
   trackTask,
   leaveReview,
+  getUserData,
 } from "../controllers/userController.js";
 
 const userRouter = express.Router();
@@ -17,5 +18,5 @@ userRouter.get("/bookings", userAuth, getUserBookings);
 userRouter.post("/cancel/:taskId", userAuth, cancelBooking);
 userRouter.get("/track/:taskId", userAuth, trackTask);
 userRouter.post("/review/:taskId", userAuth, leaveReview);
-
+userRouter.get("/data", getUserData);
 export default userRouter;

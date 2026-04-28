@@ -285,6 +285,7 @@ export const showAvailability = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
 //CRAFTSMAN CAN TOGGLE AVAILABILITY STATUS
 export const toggleAvailability = async (req, res) => {
   try {

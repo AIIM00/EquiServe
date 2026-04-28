@@ -7,13 +7,15 @@ export const register = async (req, res) => {
   try {
     const { name, email, password, role } = req.body;
     if (!["CUSTOMER", "CRAFTSMAN"].includes(role)) {
-      return res.status(400).json({ message: "Invalid role" });
+      return res.status(400).json({ success: false, message: "Invalid role" });
     }
 
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
-      return res.status(400).json({ message: "User already exists" });
+      return res
+        .status(400)
+        .json({ success: true, message: "User already exists" });
     } else {
       // Create a new user
       const hashedPassword = await bcrypt.hash(password, 10);
@@ -59,13 +61,15 @@ Best regards,
 The EquiServe Team`,
       };
       await transporter.sendMail(mailOptions);
-      res
-        .status(201)
-        .json({ message: "User registered successfully", user: newUser });
+      res.status(201).json({
+        success: true,
+        message: "User registered successfully",
+        user: newUser,
+      });
     }
   } catch (error) {
     console.error("Error registering user:", error);
-    res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
 
@@ -78,46 +82,44 @@ export const login = async (req, res) => {
       where: { email },
     });
     if (!user) {
-      return res.status(400).json({ message: "Invalid email or password" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid email or password" });
     } else {
-      if (!user.isAccountVerified) {
-        return res.status(400).json({
-          message:
-            "Email doesn't verified yet, Please verify and return to login",
-        });
+      // Compare password
+      const isPasswordValid = await bcrypt.compare(password, user.password);
+      if (!isPasswordValid) {
+        return res
+          .status(400)
+          .json({ success: false, message: "Invalid email or password" });
       } else {
-        // Compare password
-        const isPasswordValid = await bcrypt.compare(password, user.password);
-        if (!isPasswordValid) {
-          return res.status(400).json({ message: "Invalid email or password" });
-        } else {
-          // Generate JWT token
-          const token = jwt.sign(
-            { userId: user.id, role: user.role },
-            process.env.JWT_SECRET,
-            { expiresIn: "3h" },
-          );
-          res.cookie("token", token, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            sameSite: "strict",
-            maxAge: 3 * 3600 * 1000, // 3 hours
-          });
-          res.json({
-            message: "Login successful",
-            user: {
-              id: user.id,
-              name: user.name,
-              email: user.email,
-              role: user.role,
-            },
-          });
-        }
+        // Generate JWT token
+        const token = jwt.sign(
+          { userId: user.id, role: user.role },
+          process.env.JWT_SECRET,
+          { expiresIn: "3h" },
+        );
+        res.cookie("token", token, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: "strict",
+          maxAge: 3 * 3600 * 1000, // 3 hours
+        });
+        res.json({
+          success: true,
+          message: "Login successful",
+          user: {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+          },
+        });
       }
     }
   } catch (error) {
     console.error("Error logging in user:", error);
-    res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
 
@@ -130,10 +132,10 @@ export const logout = async (req, res) => {
       secure: process.env.NODE_ENV === "production",
       sameSite: "strict",
     });
-    res.json({ message: "Logout successful" });
+    res.json({ success: true, message: "Logout successful" });
   } catch (error) {
     console.error("Error logging out user:", error);
-    res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
 
@@ -207,6 +209,7 @@ export const verifyEmail = async (req, res) => {
 export const checkAuth = async (req, res) => {
   try {
     return res.json({
+      success: true,
       message: "User is authenticated",
     });
   } catch (error) {

@@ -183,3 +183,33 @@ export const leaveReview = async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 };
+
+//GET USER DATA
+export const getUserData = async (req, res) => {
+  try {
+    const userId = "eafd1f01-9dbb-488f-8078-c64ca1f68255";
+    console.log("User:", userId);
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        isAccountVerified: true,
+        role: true,
+      },
+    });
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
+    res.json({
+      success: true,
+      userData: user,
+    });
+  } catch (error) {
+    console.error("Error fetching user:", error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
